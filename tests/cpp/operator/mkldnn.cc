@@ -426,6 +426,17 @@ OpAttrs GetSumBackwardsOp() {
   return attrs;
 }
 
+OpAttrs GetConvOp() {
+  OpAttrs attrs;
+  attrs.attrs.op = Op::Get("Convolution");
+  attrs.num_inputs = 3; // with bias
+  attrs.num_outputs = 1;
+  attrs.dispatches.resize(2);
+  attrs.dispatches[0] = DispatchMode::kFCompute;
+  attrs.dispatches[1] = DispatchMode::kFComputeEx;
+  return attrs;
+}
+
 /*
  * We want to get a few types of NDArrays for testing:
  * 1. Normal NDArray
@@ -605,6 +616,21 @@ std::vector<NDArrayAttrs> GetTestOutputArrays(const TShape &shape,
   return in_arrs;
 }
 
+
+// if input is 1D, 2D skip
+// if input is 3D NCW
+NDArray GetConvKernel(const NDArray &arr) {
+  CHECK(arr.shape().ndim() > 2) << "Cannot generate a kernel with 1D input";
+  NDArray nd;
+  if (arr.shape().ndim()  == 3) {
+  } else if (arr.shape().ndim() == 4) {
+
+  } else {
+
+  }
+
+}
+
 void VerifyCopyResult(const std::vector<NDArray *> &in_arrs,
                       const std::vector<NDArray *> &out_arrs) {
   NDArray tmp1 = in_arrs[0]->Reorder2Default();
@@ -673,6 +699,28 @@ void VerifySumBackwardsResult(const std::vector<NDArray *> &in_arrs,
   for (size_t i = 0; i < out_grads.shape().Size(); i++) {
     ASSERT_EQ(og[i], ig1[i]);
     ASSERT_EQ(og[i], ig2[i]);
+  }
+}
+
+
+
+void VerifyConvResult(const std::vector<NDArray *> &in_arrs,
+                              const std::vector<NDArray *> &out_arrs) {
+  NDArray input = in_arrs[0]->Reorder2Default();  // input
+  NDArray kernel = in_arrs[1]->Reorder2Default();  // kernel
+  NDArray bias = in_arrs[2]->Reorder2Default();  // bias
+  NDArray i_grad = out_arrs[0]->Reorder2Default();  // input grads
+  TBlob blob1 = input.data();
+  TBlob blob2 = kernel.data();
+  TBlob blob3 = bias.data();
+  TBlob blob4 = i_grad.data();
+  int n = input.shape()[0];
+  mshadow::default_real_t *d1 = static_cast<mshadow::default_real_t*>(blob1.dptr_);
+  mshadow::default_real_t *d2 = static_cast<mshadow::default_real_t*>(blob2.dptr_);
+  mshadow::default_real_t *d3 = static_cast<mshadow::default_real_t*>(blob3.dptr_);
+  EXPECT_EQ(tmp1.shape().Size(), tmp2.shape().Size());
+  for (size_t i = 0; i < n; i++) {
+    ASSERT_EQ(d2[i] > 0 ? d1[i] : 0, d3[i]);
   }
 }
 
@@ -774,6 +822,9 @@ void TestOp(const OpAttrs &attrs, VerifyFunc verify_fn) {
   }
 }
 
+void TestOp(const OpAttrs &attrs, VerifyFunc verify_fn, backwards = false) {
+}
+
 TEST(IMPERATIVE, CopyOp) {
   OpAttrs attrs = GetCopyOp();
   TestOp(attrs, VerifyCopyResult);
@@ -802,6 +853,11 @@ TEST(IMPERATIVE, SumOp) {
 TEST(IMPERATIVE, SumBackwardsOp) {
   OpAttrs attrs = GetSumBackwardsOp();
   TestOp(attrs, VerifySumBackwardsResult);
+}
+
+TEST(IMPERATIVE, ConvOp) {
+  OpAttrs attrs = GetSumBackwardsOp();
+  TestConvOp(attrs, VerifyConvResults);
 }
 
 TEST(MKLDNN_BASE, MKLDNNSum) {
