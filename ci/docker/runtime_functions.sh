@@ -339,6 +339,7 @@ build_ubuntu_cpu_openblas() {
     export CC="ccache gcc"
     export CXX="ccache g++"
     cmake \
+        -DUSE_CUDA=OFF                   \
         -DCMAKE_BUILD_TYPE=Debug         \
         -DUSE_CPP_PACKAGE=ON             \
         -DBLAS=Open                     \
