@@ -616,6 +616,10 @@ std::vector<NDArrayAttrs> GetTestOutputArrays(const TShape &shape,
   return in_arrs;
 }
 
+std::vector<NDArrayAttrs> GetTestConvOutputArrays(const TShape &shape,
+                                              const std::vector<mkldnn::memory::primitive_desc> &pds) {
+
+}
 
 // if input is 1D, 2D skip
 // if input is 3D NCW
@@ -630,6 +634,29 @@ NDArray GetConvKernel(const NDArray &arr) {
   }
 
 }
+
+// assume first D is batch
+TShape GetConvOutputShape(const TShape &input,
+                     const TShape &kernel,
+                     int padding,
+                     int stride,
+                     int num_filters,
+                     bool channels_first = true) {
+  TShape output(input.ndim());
+  output[0] = input[0]; // same batch
+  for (int i = 1; i < input.ndim(); i++) {
+    if (channels_first && i == 1) {
+      output[i] = num_filters;
+    } else if (!channels_first && i == input.ndim() - 1) {
+      output[i] = num_filters;
+    } else {
+       // output[i] = (W−F+2P)/S+1;
+    }
+  }
+
+  return output;
+}
+
 
 void VerifyCopyResult(const std::vector<NDArray *> &in_arrs,
                       const std::vector<NDArray *> &out_arrs) {
@@ -701,8 +728,6 @@ void VerifySumBackwardsResult(const std::vector<NDArray *> &in_arrs,
     ASSERT_EQ(og[i], ig2[i]);
   }
 }
-
-
 
 void VerifyConvResult(const std::vector<NDArray *> &in_arrs,
                               const std::vector<NDArray *> &out_arrs) {
@@ -822,7 +847,8 @@ void TestOp(const OpAttrs &attrs, VerifyFunc verify_fn) {
   }
 }
 
-void TestOp(const OpAttrs &attrs, VerifyFunc verify_fn, backwards = false) {
+void TestConvOp(const OpAttrs &attrs, VerifyFunc verify_fn, int stride, int diliate, int num_filters, backwards = false) {
+  // bool no_bias,
 }
 
 TEST(IMPERATIVE, CopyOp) {
@@ -855,8 +881,22 @@ TEST(IMPERATIVE, SumBackwardsOp) {
   TestOp(attrs, VerifySumBackwardsResult);
 }
 
+vector<TShape> GetKernels() {
+
+}
+
 TEST(IMPERATIVE, ConvOp) {
-  OpAttrs attrs = GetSumBackwardsOp();
+  // parameters that need to be tested
+  // kernel, stride (1,2,3), dilate, pad (0,1,2), num_filter, no_bias, cudnn_off = true, layout
+  for (int stride = 1; stride < 4; stride++) {
+    for (int dilate = 1; dilate < 4; dilate++) {
+          
+
+
+    }
+  }
+
+  OpAttrs attrs = GetConvOp();
   TestConvOp(attrs, VerifyConvResults);
 }
 
