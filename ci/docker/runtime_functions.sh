@@ -338,13 +338,12 @@ build_ubuntu_cpu_openblas() {
     set -ex
     export CC="ccache gcc"
     export CXX="ccache g++"
-    make \
-        DEV=1                         \
-        USE_CPP_PACKAGE=1             \
-        USE_BLAS=openblas             \
-        USE_DIST_KVSTORE=1            \
-        -j$(nproc)
-
+    cmake \
+        -DCMAKE_BUILD_TYPE=Debug         \
+        -DUSE_CPP_PACKAGE=ON             \
+        -DBLAS=Open                     \
+        -DUSE_DIST_KVSTORE=ON
+    make -j$(nproc)
     report_ccache_usage
 }
 
