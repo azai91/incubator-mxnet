@@ -355,6 +355,17 @@ TEST(MKLDNN_NDArray, GetDataReorder) {
   }
 }
 
+std::string CreateShapeString(int value, int dim) {
+  std::stringstream ss;
+  ss << "(";
+  for (int i = 0; i < dim; i++) {
+    ss << value;
+    if (i != dim - 1) ss << ",";
+  }
+  ss << ")";
+  return ss.str();
+}
+
 struct NDArrayAttrs {
   NDArray arr;
   std::string desc;
@@ -485,6 +496,23 @@ OpAttrs GetConcatBackwardsOp(int num_args, int dim) {
   return attrs;
 }
 
+OpAttrs GetPoolingOp(int kernel, int dim, int stride, int pad) {
+  OpAttrs attrs;
+  attrs.attrs.op = Op::Get("Pooling");
+  attrs.num_inputs = 1;
+  attrs.num_outputs = dim == 2 ? 2 : 1;
+  TShape kernel_shape(dim);
+  attrs.attrs.dict.insert({"kernel" , CreateShapeString(kernel, dim)});
+  attrs.attrs.dict.insert({"stride" , CreateShapeString(stride, dim)});
+  attrs.attrs.dict.insert({"pad" , CreateShapeString(pad, dim)});
+  attrs.attrs.dict.insert({"pool_type" , "max"});
+  attrs.attrs.op->attr_parser(&attrs.attrs);
+  attrs.dispatches.resize(2);
+  attrs.dispatches[0] = DispatchMode::kFCompute;
+  attrs.dispatches[1] = DispatchMode::kFComputeEx;
+  return attrs;
+}
+
 void PrintVerifyMsg(const NDArrayAttrs &arr1, const NDArrayAttrs &arr2) {
   TShape t1 = arr1.arr.shape();
   TShape t2 = arr2.arr.shape();
@@ -598,10 +626,11 @@ std::vector<NDArrayAttrs> GetTestInputArrays(bool rand = false, int num_inputs =
 std::vector<NDArrayAttrs> GetTestOutputArrays(
     const TShape &shp,
     const std::vector<mkldnn::memory::primitive_desc> &pds,
-    float num_inputs = 0, int dim = 0) {
+    std::vector<float>scale = {1}) {
   TShape shape = shp;
-  if (num_inputs != 0)
-    shape[dim] = static_cast<int>(shape[dim] * num_inputs);
+
+  for (int dim = 0; dim < scale.size(); dim++)
+    shape[dim] = static_cast<int>(shape[dim] * scale[dim]);
 
   std::vector<NDArrayAttrs> in_arrs;
   std::string desc;
@@ -645,12 +674,13 @@ std::vector<NDArrayAttrs> GetTestOutputArrays(
     if (shape.Size() != pd.get_size() / sizeof(mshadow::default_real_t))
       continue;
 
-    if (num_inputs != 0)
-      pd = GetExpandedMemPD(pd, num_inputs);
+    if (scale.size() > pd.desc().data.ndims)
+      continue;
 
+    for (int dim = 0; dim < scale.size(); dim++)
+      pd = GetExpandedMemPD(pd, scale[dim]);
 
     // Type 2, 3.
-
     arr = NDArray(shape, Context());
     desc = "MKLDNN NDArray";
     if (shape.ndim() != pd.desc().data.ndims) {
@@ -991,6 +1021,119 @@ void TestOp(const OpAttrs &attrs, VerifyFunc verify_fn) {
   }
 }
 
+void TestPoolingOp(const OpAttrs &attrs) {
+  std::vector<NDArray*> inputs(attrs.num_inputs);
+  std::vector<NDArray*> ex_inputs(attrs.num_inputs);
+  std::vector<NDArray*> outputs(attrs.num_outputs);
+  std::vector<NDArray*> ex_outputs(attrs.num_outputs);
+  std::vector<OpReqType> req(attrs.num_outputs);
+  std::vector<NDArrayAttrs> in_arrs;
+  std::vector<NDArrayAttrs> ex_in_arrs;
+  std::vector<std::vector<NDArrayAttrs>> out_arrs(attrs.num_outputs);
+  std::vector<std::vector<NDArrayAttrs>> ex_out_arrs(attrs.num_outputs);
+  std::vector<DispatchMode> dispatches = attrs.dispatches;
+
+  TestArrayShapes tas = GetTestArrayShapes();
+  std::vector<mkldnn::memory::primitive_desc> pds = tas.pds;
+
+  if (attrs.requests.find(OpReqType::kWriteTo) != attrs.requests.end()) {
+    std::vector<NDArrayAttrs> in_arrs = GetTestInputArrays();
+    for (auto &in_arr : in_arrs) {
+      for (auto &dispatch : dispatches) {
+        for (int i = 0; i < attrs.num_outputs; i++) {
+          out_arrs[i] = GetTestOutputArrays(in_arr.arr.shape(), pds);
+          ex_out_arrs[i] = GetTestOutputArrays(in_arr.arr.shape(), pds);
+        }
+
+        for (int i = 0; i < attrs.num_inputs; i++)
+          inputs[i] = &in_arr.arr;
+        for (size_t output_i = 0; output_i < out_arrs[0].size(); output_i++) {
+          for (int i = 0; i < attrs.num_outputs; i++) {
+            req[i] = kWriteTo;
+            outputs[i] = &out_arrs[i][output_i].arr;
+            ex_outputs[i] = &ex_out_arrs[i][output_i].arr;
+          }
+          PrintVerifyMsg(in_arr, out_arrs[0][output_i]);
+          Imperative::Get()->InvokeOp(Context(), attrs.attrs, inputs,
+                                      outputs, req, dispatch, mxnet::OpStatePtr());
+          Imperative::Get()->InvokeOp(Context(), attrs.attrs, inputs,
+                                      ex_outputs, req, dispatch, mxnet::OpStatePtr());
+          Engine::Get()->WaitForAll();
+          VerifyCopyResult(outputs, ex_outputs);
+        }
+      }
+    }
+  }
+
+  if (attrs.requests.find(OpReqType::kWriteInplace) != attrs.requests.end()) {
+    for (auto &dispatch : dispatches) {
+      in_arrs = GetTestInputArrays();
+      ex_in_arrs = GetTestInputArrays();
+      for (int i = 0; i < in_arrs.size(); i++) {
+        auto arr = in_arrs[i];
+        auto ex_arr = ex_in_arrs[i];
+        // If the array is a view, we shouldn't write data to it.
+        if (arr.arr.IsView())
+          continue;
+        NDArrayAttrs orig(arr.arr.Copy(arr.arr.ctx()), "InPlace Copy");
+        for (int i = 0; i < attrs.num_inputs; i++) {
+          inputs[i] = &arr.arr;
+          ex_inputs[i] = &arr.arr;
+        }
+
+        for (int i = 0; i < attrs.num_outputs; i++) {
+          req[i] = kWriteInplace;
+          outputs[i] = &arr.arr;
+          ex_outputs[i] = &ex_arr.arr;
+        }
+        PrintVerifyMsg(orig, arr);
+        Imperative::Get()->InvokeOp(Context(), attrs.attrs, inputs, outputs, req,
+                                    dispatch, mxnet::OpStatePtr());
+        Imperative::Get()->InvokeOp(Context(), attrs.attrs, ex_inputs, ex_outputs, req,
+                                    dispatch, mxnet::OpStatePtr());
+        Engine::Get()->WaitForAll();
+        std::vector<NDArray *> orig_inputs(attrs.num_inputs);
+        for (int i = 0; i < attrs.num_inputs; i++)
+          orig_inputs[i] = &orig.arr;
+        VerifyCopyResult(outputs, ex_outputs);
+      }
+    }
+  }
+
+  if (attrs.requests.find(OpReqType::kAddTo) != attrs.requests.end()) {
+    std::vector<NDArray*> original_outputs(attrs.num_outputs);
+    in_arrs = GetTestInputArrays();
+    for (auto &in_arr : in_arrs) {
+      for (auto &dispatch : dispatches) {
+        for (int i = 0; i < attrs.num_outputs; i++) {
+          out_arrs[i] = GetTestOutputArrays(in_arr.arr.shape(), pds);
+          ex_out_arrs[i] = GetTestOutputArrays(in_arr.arr.shape(), pds);
+        }
+        for (size_t i = 0; i < attrs.num_inputs; i++)
+          inputs[i] = &in_arr.arr;
+        for (size_t output_i = 0; output_i < out_arrs[0].size(); output_i++) {
+          NDArray tmp;
+          for (size_t i = 0; i < attrs.num_outputs; i++) {
+            auto out_arr = out_arrs[i][output_i];
+            tmp = out_arr.arr.Copy(out_arr.arr.ctx());
+            original_outputs[i] =  &tmp;
+            outputs[i] = &out_arrs[i][output_i].arr;
+            ex_outputs[i] = &ex_out_arrs[i][output_i].arr;
+            req[i] = kAddTo;
+          }
+          PrintVerifyMsg(in_arr, out_arrs[0][output_i]);
+          Imperative::Get()->InvokeOp(Context(), attrs.attrs, inputs,
+                                      outputs, req, dispatch, mxnet::OpStatePtr());
+          Imperative::Get()->InvokeOp(Context(), attrs.attrs, inputs,
+                                      ex_outputs, req, dispatch, mxnet::OpStatePtr());
+          Engine::Get()->WaitForAll();
+          VerifyCopyResult(outputs, ex_outputs);
+        }
+      }
+    }
+  }
+}
+
 void TestConcatOp(const OpAttrs &attrs, VerifyFunc verify_fn,
             bool backwards = false) {
   std::vector<NDArray*> inputs(attrs.num_inputs);
@@ -1041,6 +1184,7 @@ void TestConcatOp(const OpAttrs &attrs, VerifyFunc verify_fn,
     }
   }
 }
+
 
 TEST(IMPERATIVE, CopyOp) {
   OpAttrs attrs = GetCopyOp();
