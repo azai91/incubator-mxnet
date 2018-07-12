@@ -123,7 +123,7 @@ inline static bool BackwardActStorageType(const nnvm::NodeAttrs& attrs,
                                                          dispatch_mode,
                                                          in_attrs, out_attrs);
   }
-#else if (MXNET_USE_MKLDNN == 1)
+#elif (MXNET_USE_MKLDNN == 1)
   ret = MKLDNNStorageType(attrs, dev_mask, true, dispatch_mode, in_attrs, out_attrs);
 #else
   CHECK_EQ(in_attrs->size(), 2U);
@@ -153,12 +153,12 @@ The following activation functions are supported:
 
 )code" ADD_FILELINE)
 .set_attr_parser(ParamParser<ActivationParam>)
+.set_attr<FInferStorageType>("FInferStorageType", ActivationStorageType)
 .set_attr<nnvm::FListOutputNames>("FListOutputNames",
     [](const NodeAttrs& attrs) {
     return std::vector<std::string>{"output"};
 })
 .set_attr<FCompute>("FCompute<cpu>", ActivationCompute<cpu>)
-.set_attr<FInferStorageType>("FInferStorageType", ActivationStorageType)
 #if MXNET_USE_MKLDNN == 1
 .set_attr<FComputeEx>("FComputeEx<cpu>", ActivationComputeExCPU)
 #endif
@@ -174,8 +174,8 @@ NNVM_REGISTER_OP(_backward_Activation)
   })
 .set_num_outputs(1)
 .set_attr<nnvm::TIsBackward>("TIsBackward", true)
-.set_attr<nnvm::FInferShape>("FInferShape", ElemwiseShape<3, 1>)
 .set_attr<FInferStorageType>("FInferStorageType", BackwardActStorageType)
+.set_attr<nnvm::FInferShape>("FInferShape", ElemwiseShape<3, 1>)
 .set_attr<nnvm::FInferType>("FInferType", ElemwiseType<3, 1>)
 .set_attr<nnvm::FInplaceOption>("FInplaceOption", [](const NodeAttrs& attrs){
   return std::vector<std::pair<int, int> >{{0, 0}};
