@@ -100,16 +100,7 @@ inline static bool ActivationStorageType(const nnvm::NodeAttrs& attrs,
                                          std::vector<int> *out_attrs) {
   CHECK_EQ(in_attrs->size(), 1);
   CHECK_EQ(out_attrs->size(), 1);
-  bool ret = ElemwiseStorageType<1, 1, false, false, false>(attrs, dev_mask,
-                                                            dispatch_mode,
-                                                            in_attrs, out_attrs);
-#if MXNET_USE_MKLDNN == 1
-  const ActivationParam& param = nnvm::get<ActivationParam>(attrs.parsed);
-  if (dev_mask == mshadow::cpu::kDevMask && SupportMKLDNNAct(param)) {
-    *dispatch_mode = DispatchMode::kFComputeEx;
-  }
-#endif
-  return ret;
+  return MKLDNNStorageType(attrs, dev_mask, true, dispatch_mode, in_attrs, out_attrs);
 }
 
 inline static bool BackwardActStorageType(const nnvm::NodeAttrs& attrs,
@@ -118,7 +109,7 @@ inline static bool BackwardActStorageType(const nnvm::NodeAttrs& attrs,
                                           std::vector<int> *in_attrs,
                                           std::vector<int> *out_attrs) {
   bool ret = false;
-#if (MXNET_USE_CUDNN == 1 || MXNET_USE_MKLDNN == 1)
+#if (MXNET_USE_CUDNN == 1)
   const ActivationParam& param = nnvm::get<ActivationParam>(attrs.parsed);
   if (param.act_type != activation::kReLU) {
     CHECK_EQ(in_attrs->size(), 3U);
@@ -132,6 +123,8 @@ inline static bool BackwardActStorageType(const nnvm::NodeAttrs& attrs,
                                                          dispatch_mode,
                                                          in_attrs, out_attrs);
   }
+#else if (MXNET_USE_MKLDNN == 1)
+  ret = MKLDNNStorageType(attrs, dev_mask, true, dispatch_mode, in_attrs, out_attrs);
 #else
   CHECK_EQ(in_attrs->size(), 2U);
   ret = ElemwiseStorageType<2, 1, false, false, false>(attrs, dev_mask,
@@ -139,11 +132,11 @@ inline static bool BackwardActStorageType(const nnvm::NodeAttrs& attrs,
                                                        in_attrs, out_attrs);
 #endif
   CHECK_EQ(out_attrs->size(), 1U);
-#if MXNET_USE_MKLDNN == 1
-  if (dev_mask == mshadow::cpu::kDevMask && SupportMKLDNNAct(param)) {
-    *dispatch_mode = DispatchMode::kFComputeEx;
-  }
-#endif
+//#if MXNET_USE_MKLDNN == 1
+//  if (dev_mask == mshadow::cpu::kDevMask && SupportMKLDNNAct(param)) {
+//    *dispatch_mode = DispatchMode::kFComputeEx;
+//  }
+//#endif
   return ret;
 }
 
@@ -160,12 +153,12 @@ The following activation functions are supported:
 
 )code" ADD_FILELINE)
 .set_attr_parser(ParamParser<ActivationParam>)
-.set_attr<FInferStorageType>("FInferStorageType", ActivationStorageType)
 .set_attr<nnvm::FListOutputNames>("FListOutputNames",
     [](const NodeAttrs& attrs) {
     return std::vector<std::string>{"output"};
 })
 .set_attr<FCompute>("FCompute<cpu>", ActivationCompute<cpu>)
+.set_attr<FInferStorageType>("FInferStorageType", ActivationStorageType)
 #if MXNET_USE_MKLDNN == 1
 .set_attr<FComputeEx>("FComputeEx<cpu>", ActivationComputeExCPU)
 #endif
@@ -181,8 +174,8 @@ NNVM_REGISTER_OP(_backward_Activation)
   })
 .set_num_outputs(1)
 .set_attr<nnvm::TIsBackward>("TIsBackward", true)
-.set_attr<FInferStorageType>("FInferStorageType", BackwardActStorageType)
 .set_attr<nnvm::FInferShape>("FInferShape", ElemwiseShape<3, 1>)
+.set_attr<FInferStorageType>("FInferStorageType", BackwardActStorageType)
 .set_attr<nnvm::FInferType>("FInferType", ElemwiseType<3, 1>)
 .set_attr<nnvm::FInplaceOption>("FInplaceOption", [](const NodeAttrs& attrs){
   return std::vector<std::pair<int, int> >{{0, 0}};
