@@ -249,7 +249,7 @@ def test_activation():
                 data_tmp = np.random.normal(-0.1, 0.1, size=shape)
                 data = mx.symbol.Variable('data', stype=stype)
                 in_location = [mx.nd.array(data_tmp).tostype(stype)]
-                test = mx.symbol.Activation(data, act_type=)
+                test = mx.symbol.Activation(data, act_type=act_type)
                 check_numeric_gradient(test, in_location, numeric_eps=1e-2, rtol=0.16, atol=1e-2)
 
     stypes = ['row_sparse', 'default']
