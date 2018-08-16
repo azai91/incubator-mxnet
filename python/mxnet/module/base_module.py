@@ -19,10 +19,11 @@
 # pylint: disable=too-many-public-methods, too-many-branches, too-many-lines
 """`BaseModule` defines an API for modules."""
 
+import collections
 import time
 import logging
-import warnings
 import numpy as np
+import warnings
 
 from .. import metric
 from .. import ndarray
@@ -30,7 +31,7 @@ from .. import ndarray
 from ..context import cpu
 from ..model import BatchEndParam
 from ..initializer import Uniform
-from ..io import DataDesc, DataIter, DataBatch
+from ..io import DataDesc, DataIter, DataBatch, GeneratorDataIterator
 from ..base import _as_list
 
 
@@ -494,7 +495,20 @@ class BaseModule(object):
         """
         assert num_epoch is not None, 'please specify number of epochs'
 
-        self.bind(data_shapes=train_data.provide_data, label_shapes=train_data.provide_label,
+        if isinstance(train_data, collections.Iterator):
+            if not isinstance(train_data, DataIter):
+                train_data = GeneratorDataIterator(train_data)
+        else:
+            raise ValueError('train_data must be of type iterator')
+
+        if eval_data:
+            if isinstance(train_data, collections.Iterator):
+                if not isinstance(train_data, DataIter):
+                    eval_data = GeneratorDataIterator(train_data)
+            else:
+                raise ValueError('eval_data must be of type iterator')
+
+        self.bind(data_shapes=train_data.data_shapes, label_shapes=train_data.label_shapes,
                   for_training=True, force_rebind=force_rebind)
         if monitor is not None:
             self.install_monitor(monitor)

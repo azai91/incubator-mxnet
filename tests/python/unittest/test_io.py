@@ -425,6 +425,30 @@ def test_ImageRecordIter_seed_augmentation():
     data2 = batch.data[0].asnumpy().astype(np.uint8)
     assert(np.array_equal(data,data2))
 
+def test_GeneratorDataIterator():
+    def test_generator(num_batches, input_shape):
+        for i in range(num_batches):
+            data = mx.nd.random.normal(shape=input_shape)
+            label = np.array([i])
+            yield [(data, label)]
+    num_batches = 5
+    input_shape = (3, 28, 28)
+    dataiter = mx.io.GeneratorDataIterator(test_generator(num_batches, input_shape))
+    count = 0
+    for data, label in dataiter:
+        assert data.shape == input_shape
+        assert label.shape == (1,)
+        count += 1
+    assert count == num_batches
+    dataiter.reset()
+    count = 0
+    for data, label in dataiter:
+        assert data.shape == input_shape
+        assert label.shape == (1,)
+        count += 1
+    assert count == num_batches
+
+
 if __name__ == "__main__":
     test_NDArrayIter()
     if h5py:
