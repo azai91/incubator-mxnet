@@ -31,8 +31,53 @@ from .. import ndarray
 from ..context import cpu
 from ..model import BatchEndParam
 from ..initializer import Uniform
-from ..io import DataDesc, DataIter, DataBatch, GeneratorDataIterator
+from ..io import DataDesc, DataIter, DataBatch
 from ..base import _as_list
+
+
+class GeneratorDataIterator(DataIter):
+    """Wrapper that conforms iterator/generator to DataIter API
+    Iterator must return tuple (data, label)
+
+    Parameters
+    ----------
+    data_iter : Generator or iterator
+        Must return tuple (data, label)
+
+
+    Examples
+    --------
+    >>> data = mx.nd.ones((100,10))
+    >>> label = np.ones([10, 1])
+    >>> data_iter = [(data, label)]
+    >>> gen_data_iter = mx.io.GeneratorDataIterator(nd_iter, 2)
+    >>> for batch in resize_iter:
+    ...     print(batch.data)
+    [<NDArray 100x10 @cpu(0)>]
+    """
+    def __init__(self, iterator):
+        super(GeneratorDataIterator, self).__init__()
+        self.base_iterator, self.curr_iterator = itertools.tee(iterator)
+
+
+    def __iter__(self):
+        return self.curr_iterator
+
+    def reset(self):
+        self.base_iterator, self.curr_iterator = itertools.tee(self.base_iterator)
+
+    def next(self):
+        self.current_batch = next(self.curr_iterator)
+        return DataBatch(
+            data=self.current_batch[0],
+            label=self.current_batch[1],
+        )
+
+    def getdata(self):
+        return self.current_batch[0]
+
+    def getlabel(self):
+        return self.current_batch[1]
 
 
 def _check_input_names(symbol, names, typename, throw):
