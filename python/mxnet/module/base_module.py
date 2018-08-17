@@ -22,6 +22,7 @@
 import collections
 import time
 import logging
+import itertools
 import numpy as np
 import warnings
 
