@@ -59,6 +59,10 @@ class GeneratorDataIterator(DataIter):
     def __init__(self, iterator):
         super(GeneratorDataIterator, self).__init__()
         self.base_iterator, self.curr_iterator = itertools.tee(iterator)
+        sample_batch = self.next()
+        self.reset()
+        self.provide_data = sample_batch.provide_data
+        self.provide_label = sample_batch.provide_label
 
 
     def __iter__(self):
@@ -70,8 +74,8 @@ class GeneratorDataIterator(DataIter):
     def next(self):
         self.current_batch = next(self.curr_iterator)
         return DataBatch(
-            data=self.current_batch[0],
-            label=self.current_batch[1],
+            data=[self.current_batch[0]],
+            label=[self.current_batch[1]],
         )
 
     def getdata(self):
@@ -554,7 +558,7 @@ class BaseModule(object):
             else:
                 raise ValueError('eval_data must be of type iterator')
 
-        self.bind(data_shapes=train_data.data_shapes, label_shapes=train_data.label_shapes,
+        self.bind(data_shapes=train_data.provide_data, label_shapes=train_data.provide_data,
                   for_training=True, force_rebind=force_rebind)
         if monitor is not None:
             self.install_monitor(monitor)
