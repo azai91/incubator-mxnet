@@ -94,6 +94,8 @@ void BatchNormForwardImpl(mshadow::Stream<cpu> *,
                           const std::vector<OpReqType> &req,
                           const std::vector<TBlob> &out_data,
                           const std::vector<TBlob> &aux_states) {
+  // Batch Norm Forward does not support kAddTo
+
   // Input
   batchnorm::BNTensor3<DType> inputData(in_data[batchnorm::kData], param_.axis);
   const TBlob &weights         = in_data[batchnorm::kGamma];
@@ -196,6 +198,8 @@ void BatchNormBackwardImpl(mshadow::Stream<cpu> *,
                            const std::vector<OpReqType> &req,
                            const std::vector<TBlob> &in_grad,
                            const std::vector<TBlob> &aux_states) {
+  // Batch Norm Backward does not support kAddTo
+
   // Input Data
   batchnorm::BNTensor3<DType> inputData(in_data[batchnorm::kData], param_.axis);
   const TBlob &weights   = in_data[batchnorm::kGamma];
