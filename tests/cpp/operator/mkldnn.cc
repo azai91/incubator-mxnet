@@ -566,7 +566,6 @@ OpAttrs GetLRNOp() {
   attrs.num_outputs = 2;
   attrs.attrs.dict.insert({"nsize" , "3"});
   attrs.attrs.op->attr_parser(&attrs.attrs);
-  attrs.dispatches.resize(2);
   attrs.requests.insert(OpReqType::kWriteTo);
   attrs.input_types = ArrayTypes::Normal |
       ArrayTypes::MKLDNN |
@@ -586,7 +585,32 @@ OpAttrs GetLRNBackwardsOp() {
   attrs.num_outputs = 1;
   attrs.attrs.dict.insert({"nsize" , "3"});
   attrs.attrs.op->attr_parser(&attrs.attrs);
-  attrs.dispatches.resize(2);
+  attrs.requests.insert(OpReqType::kWriteTo);
+  return attrs;
+}
+
+OpAttrs GetBNOp() {
+  OpAttrs attrs;
+  attrs.attrs.op = Op::Get("BatchNorm");
+  attrs.num_inputs = 5;
+  attrs.num_outputs = 3;
+  attrs.requests.insert(OpReqType::kWriteTo);
+  attrs.input_types = ArrayTypes::Normal |
+      ArrayTypes::MKLDNN |
+      ArrayTypes::NormalReshaped |
+      ArrayTypes::MKLDNNReshaped;
+  attrs.output_types = ArrayTypes::Normal |
+      ArrayTypes::MKLDNN |
+      ArrayTypes::NormalReshaped |
+      ArrayTypes::MKLDNNReshaped;
+  return attrs;
+}
+
+OpAttrs GetBNBackwardsOp() {
+  OpAttrs attrs;
+  attrs.attrs.op = Op::Get("_backward_BatchNorm");
+  attrs.num_inputs = 8;
+  attrs.num_outputs = 1;
   attrs.requests.insert(OpReqType::kWriteTo);
   return attrs;
 }
