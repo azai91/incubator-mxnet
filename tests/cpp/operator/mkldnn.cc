@@ -1302,7 +1302,7 @@ void TestOpEx(const OpAttrs &forward_attrs, const OpAttrs &backwards_attrs) {
         AssertEqual(outputs, ex_outputs);
 
 
-        if (backwards_attrs.attrs.op->name.compare("LRN") == 0) {
+        if (backwards_attrs.attrs.op->name.compare("_backward_LRN") == 0) {
           backwards_input[0] = outputs[0];  // output grad
           backwards_input[1] = inputs[0];  // input
           backwards_input[2] = outputs[1];  // out norm
@@ -1564,6 +1564,12 @@ TEST(IMPERATIVE, ConcatBackwardsOp) {
 TEST(IMPERATIVE, LRNOp) {
   OpAttrs forward_attrs = GetLRNOp();
   OpAttrs backwards_attrs = GetLRNBackwardsOp();
+  TestOpEx(forward_attrs, backwards_attrs);
+}
+
+TEST(IMPERATIVE, BatchNormOp) {
+  OpAttrs forward_attrs = GetBNOp();
+  OpAttrs backwards_attrs = GetBNBackwardsOp();
   TestOpEx(forward_attrs, backwards_attrs);
 }
 
