@@ -149,9 +149,14 @@ class RandGenerator<gpu, DType> {
     curandStatePhilox4_32_10_t state_;
   };  // class RandGenerator<gpu, DType>::Impl
 
-  static void AllocState(RandGenerator<gpu, DType> *inst);
+  static void AllocState(RandGenerator<gpu, DType> *inst) {
+    CUDA_CALL(cudaMalloc(&inst->states_,
+                       kNumRandomStates * sizeof(curandStatePhilox4_32_10_t)));
+  }
 
-  static void FreeState(RandGenerator<gpu, DType> *inst);
+  static void FreeState(RandGenerator<gpu, DType> *inst) {
+    CUDA_CALL(cudaFree(inst->states_));
+  }
 
   void Seed(mshadow::Stream<gpu> *s, uint32_t seed);
 
