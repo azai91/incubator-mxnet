@@ -3201,10 +3201,7 @@ def test_norm():
                                         [npy_out_backward],
                                         rtol=1e-2 if dtype is np.float16 else 1e-5,
                                         atol=1e-2 if dtype is np.float16 else 1e-5, ctx=ctx)
-                # Disable numeric gradient https://github.com/apache/incubator-mxnet/issues/11509
-                # # check gradient
-                # if dtype is not np.float16:
-                #     check_numeric_gradient(norm_sym, [in_data], numeric_eps=epsilon, rtol=1e-1, atol=1e-3)
+                check_numeric_gradient(norm_sym, [in_data], numeric_eps=epsilon, rtol=1e-1, atol=1e-3)
                 if i < in_data_dim-1:
                     norm_sym = mx.symbol.norm(data=data, ord=order, axis=(i, i+1), keepdims=True)
                     npy_out = l1norm(in_data, (i, i+1)) if order is 1 else l2norm(in_data, (i, i+1))
@@ -3216,9 +3213,7 @@ def test_norm():
                                             [npy_out_backward],
                                             rtol=1e-2 if dtype is np.float16 else 1e-5,
                                             atol=1e-2 if dtype is np.float16 else 1e-5, ctx=ctx)
-                    # # check gradient
-                    # if dtype is not np.float16:
-                    #     check_numeric_gradient(norm_sym, [in_data], numeric_eps=epsilon, rtol=1e-1, atol=1e-3)
+                    check_numeric_gradient(norm_sym, [in_data], numeric_eps=epsilon, rtol=1e-1, atol=1e-3)
 
 
 def test_layer_norm():
