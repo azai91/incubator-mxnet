@@ -1395,7 +1395,8 @@ def test_ndarray_astype():
 
 
 @with_seed()
-def test_norm(ctx=default_context()):
+def test_norm_2():
+    ctx = default_context()
     try:
         import scipy
         assert LooseVersion(scipy.__version__) >= LooseVersion('0.1')
