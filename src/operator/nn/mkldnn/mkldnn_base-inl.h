@@ -197,7 +197,7 @@ class MKLDNNCache {
 
  private:
   std::list<K> dq;
-  std::unordered_map<K, VAL> ma;
+  std::unordered_map<K, VAL, H> ma;
   int capacity;
 };
 
