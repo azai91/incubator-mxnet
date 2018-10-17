@@ -171,7 +171,7 @@ class MKLDNNCache {
   typedef typename std::pair<V, IT> VAL;
 
  public:
-  MKLDNNCache(): capacity(GetMKLDNNCacheSize()) {}
+  MKLDNNCache(): capacity(GetMKLDNNCacheSize()), dq(), ma{} {}
   V* insert(K& key, V& value) {
 
     if (capacity > 0 && static_cast<int>(ma.size()) > capacity) {
