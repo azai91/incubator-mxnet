@@ -175,7 +175,7 @@ class MKLDNNCache {
   const V* insert(const K& key, const V& value) {
 
     if (capacity > 0 && static_cast<int>(ma.size()) > capacity) {
-      ma.erase(*dq.back());
+      ma.erase(dq.back());
       dq.pop_back();
     }
 
@@ -189,10 +189,10 @@ class MKLDNNCache {
     auto ret = ma.find(key);
     if (ret == ma.end())
       return nullptr;
-    dq.erase(ret.second.second);
+    dq.erase(ret->second.second);
     dq.push_front(key);
     ma[key].second = dq.begin();
-    return &ret.second.first;
+    return &ret->second.first;
   }
 
  private:
