@@ -364,7 +364,7 @@ static inline MKLDNNDeconvBackwardData &GetDeconvBwdData(
   key.AddSign(output);
 
   auto it = bwds.find(key);
-  if (it == bwds.end()) {
+  if (it == nullptr) {
     MKLDNNDeconvBackwardData bwd(param, data, weights, output);
     it = bwds.insert(key, bwd);
   }
@@ -416,11 +416,11 @@ static inline MKLDNNDeconvBackwardWeights &GetDeconvBwdWeights(
     const NDArray &weights, const NDArray &output,
     const mkldnn::convolution_forward::primitive_desc &bwd_data_pd) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNDeconvSignature,
+  static thread_local MKLDNNCache<MKLDNNDeconvSignature,
                                          MKLDNNDeconvBackwardWeights, OpHash>
       bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNDeconvSignature,
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNDeconvSignature,
                                             MKLDNNDeconvBackwardWeights, OpHash>
       bwds;
 #endif
@@ -433,15 +433,11 @@ static inline MKLDNNDeconvBackwardWeights &GetDeconvBwdWeights(
   key.AddSign(output);
 
   auto it = bwds.find(key);
-  if (it == bwds.end()) {
+  if (it == nullptr) {
     MKLDNNDeconvBackwardWeights bwd(param, data, weights, output, bwd_data_pd);
-    auto ins_ret = bwds.insert(
-        std::pair<MKLDNNDeconvSignature, MKLDNNDeconvBackwardWeights>(key,
-                                                                      bwd));
-    CHECK(ins_ret.second);
-    it = ins_ret.first;
+    it = bwds.insert(key, bwd);
   }
-  return it->second;
+  return *it;
 }
 
 void MKLDNNDeconvolutionBackward(const nnvm::NodeAttrs &attrs,

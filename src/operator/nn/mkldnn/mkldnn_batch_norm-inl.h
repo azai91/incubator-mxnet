@@ -198,7 +198,7 @@ static MKLDNNBNForward &GetBNForward(const BatchNormParam& param,
     auto fwd_pd = _GetFwd(*in_data.GetMKLDNNData(), ctx.is_train,
                           (DType) param.eps, flags);
     MKLDNNBNForward fwd(fwd_pd, ctx.is_train);
-    it = fwds.find(key, fwd);
+    it = fwds.insert(key, fwd);
   }
   return *it;
 }

@@ -179,20 +179,20 @@ class MKLDNNCache {
       dq.pop_back();
     }
 
-
     dq.push_front(key);
     ma.insert(std::pair<K,VAL>(key, VAL(value, dq.begin())));
     return &value;
   }
 
-  V* find(const K& key) {
+  V* find(K& key) {
     auto ret = ma.find(key);
     if (ret == ma.end())
       return nullptr;
     dq.erase(ret->second.second);
     dq.push_front(key);
-    ma[key].second = dq.begin();
-    return &ret->second.first;
+    auto value = ret->second.first;
+    ma.insert(std::pair<K,VAL>(key, VAL(value, dq.begin())));
+    return &value;
   }
 
  private:

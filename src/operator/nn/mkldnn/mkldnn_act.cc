@@ -256,9 +256,9 @@ static inline MKLDNNActBackward &GetActBackward(const ActivationParam &param,
   key.AddSign(out_grad);
 
   auto it = bwds.find(key);
-  if (it == bwds.end()) {
+  if (it == nullptr) {
     MKLDNNActBackward bwd(param, in_data, in_mem, *out_grad.GetMKLDNNData());
-    it = bwds.find(key, bwd);
+    it = bwds.insert(key, bwd);
   }
   return *it;
 }
