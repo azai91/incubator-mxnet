@@ -168,6 +168,7 @@ static inline int GetMKLDNNCacheSize() {
 template<typename K, typename V, typename H>
 class MKLDNNCache {
   typedef typename std::list<K>::iterator IT;
+  typedef typename std::pair<V, IT> VAL;
 
  public:
   MKLDNNCache(): capacity(GetMKLDNNCacheSize()) {}
@@ -177,7 +178,7 @@ class MKLDNNCache {
       ma.erase(dq.back());
 
     dq.push_front(key);
-    ma[key] = std::pair<V,IT>(value, dq.begin());
+    ma.insert(std::pair<K,VAL>(key, VAL(value, dq.begin())));
     return &value;
   }
 
@@ -193,7 +194,7 @@ class MKLDNNCache {
 
  private:
   std::list<K> dq;
-  std::unordered_map<K, typename std::pair<V, IT>> ma;
+  std::unordered_map<K, VAL> ma;
   int capacity;
 };
 
