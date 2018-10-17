@@ -76,20 +76,20 @@ static MKLDNNConcatFwd &GetConcatForward(
     int concat_dim, const std::vector<NDArray> &in_data,
     const std::vector<mkldnn::memory::primitive_desc> &data_md) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<OpSignature, MKLDNNConcatFwd, OpHash> fwds;
+  static thread_local MKLDNNCache<OpSignature, MKLDNNConcatFwd, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<OpSignature, MKLDNNConcatFwd, OpHash> fwds;
+  static MX_THREAD_LOCAL MKLDNNCache<OpSignature, MKLDNNConcatFwd, OpHash> fwds;
 #endif
   OpSignature key;
   key.AddSign(concat_dim);
   key.AddSign(in_data);
 
   auto it = fwds.find(key);
-  if (it == fwds.end()) {
+  if (it == nullptr) {
     MKLDNNConcatFwd fwd(concat_dim, data_md);
-    it = AddToCache(fwds, key, fwd);
+    it = fwds.insert(key, fwd);
   }
-  return it->second;
+  return *it;
 }
 
 void MKLDNNConcatForward(const nnvm::NodeAttrs& attrs, const OpContext &ctx,

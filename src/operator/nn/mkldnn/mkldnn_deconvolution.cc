@@ -262,11 +262,9 @@ static inline MKLDNNDeconvForward &GetDeconvFwd(
     const NDArray &weights, const NDArray *bias,
     const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local
-        std::unordered_map<DeconvSignature, MKLDNNDeconvForward, OpHash> fwds;
+  static thread_local MKLDNNCache<DeconvSignature, MKLDNNDeconvForward, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL
-        std::unordered_map<DeconvSignature, MKLDNNDeconvForward, OpHash> fwds;
+  static MX_THREAD_LOCAL MKLDNNCache<DeconvSignature, MKLDNNDeconvForward, OpHash> fwds;
 #endif
   const DeconvolutionParam& param = nnvm::get<DeconvolutionParam>(attrs.parsed);
   DeconvSignature key(param);
@@ -280,12 +278,12 @@ static inline MKLDNNDeconvForward &GetDeconvFwd(
     key.AddSign(*bias);
 
   auto it = fwds.find(key);
-  if (it == fwds.end()) {
+  if (it == nullptr) {
     bool has_bias = (bias != nullptr);
     MKLDNNDeconvForward fwd(param, data, weights, has_bias, output);
-    it = AddToCache(fwds, key, fwd);
+    it = fwds.insert(key, fwd);
   }
-  return it->second;
+  return *it;
 }
 
 void MKLDNNDeconvolutionForward(const nnvm::NodeAttrs& attrs, const OpContext &ctx,
@@ -349,11 +347,11 @@ static inline MKLDNNDeconvBackwardData &GetDeconvBwdData(
     const DeconvolutionParam &param, const NDArray &data,
     const NDArray &weights, const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNDeconvSignature,
+  static thread_local MKLDNNCache<MKLDNNDeconvSignature,
                                          MKLDNNDeconvBackwardData, OpHash>
       bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNDeconvSignature,
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNDeconvSignature,
                                             MKLDNNDeconvBackwardData, OpHash>
       bwds;
 #endif
@@ -368,9 +366,9 @@ static inline MKLDNNDeconvBackwardData &GetDeconvBwdData(
   auto it = bwds.find(key);
   if (it == bwds.end()) {
     MKLDNNDeconvBackwardData bwd(param, data, weights, output);
-    it = AddToCache(bwds, key, bwd);
+    it = bwds.insert(key, bwd);
   }
-  return it->second;
+  return *it;
 }
 
 class MKLDNNDeconvBackwardWeights {

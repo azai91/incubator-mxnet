@@ -191,11 +191,11 @@ MKLDNNPoolingFwd &GetPoolingFwd(const PoolingParam &param,
                                 const NDArray &data,
                                 const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNPoolingSignature,
+  static thread_local MKLDNNCache<MKLDNNPoolingSignature,
                                          MKLDNNPoolingFwd,
                                          OpHash> pooling_fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNPoolingSignature,
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNPoolingSignature,
                                             MKLDNNPoolingFwd,
                                             OpHash> pooling_fwds;
 #endif
@@ -208,7 +208,7 @@ MKLDNNPoolingFwd &GetPoolingFwd(const PoolingParam &param,
   key.AddSign(output);
 
   auto it = pooling_fwds.find(key);
-  if (it == pooling_fwds.end()) {
+  if (it == nullptr) {
     CHECK_EQ(param.kernel.ndim(), 2) << "Not Implemented";
     auto data_md = data.GetMKLDNNData()->get_primitive_desc().desc();
     int kernel_h_, kernel_w_;
@@ -243,9 +243,9 @@ MKLDNNPoolingFwd &GetPoolingFwd(const PoolingParam &param,
     const mkldnn::algorithm alg = GetMKLDNNPoolAlgo(param);
     MKLDNNPoolingFwd fwd(data, output, kernel_h_, kernel_w_, stride_h_, stride_w_,
                          pad_t_, pad_b_, pad_l_, pad_r_, alg, with_workspace, is_train);
-    it = AddToCache(pooling_fwds, key, fwd);
+    it = pooling_fwds.insert(key, fwd);
   }
-  return it->second;
+  return *it;
 }
 
 void MKLDNNPoolingCompute(const OpContext &ctx, const PoolingParam &param,
@@ -298,13 +298,10 @@ MKLDNNPoolingBwd &GetPoolingBwd(const PoolingParam &param,
                                 const NDArray &in_grad,
                                 const NDArray &out_grad) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local
-      std::unordered_map<MKLDNNPoolingSignature,
-                         MKLDNNPoolingBwd, OpHash> pooling_bwds;
+  static thread_local MKLDNNCache<MKLDNNPoolingSignature, MKLDNNPoolingBwd, OpHash> pooling_bwds;
 #else
   static MX_THREAD_LOCAL
-      std::unordered_map<MKLDNNPoolingSignature,
-                         MKLDNNPoolingBwd, OpHash> pooling_bwds;
+      MKLDNNCache<MKLDNNPoolingSignature, MKLDNNPoolingBwd, OpHash> pooling_bwds;
 #endif
 
   bool with_workspace = MKLDNNRequireWorkspace(param);
@@ -314,7 +311,7 @@ MKLDNNPoolingBwd &GetPoolingBwd(const PoolingParam &param,
   key.AddSign(out_grad);
 
   auto it = pooling_bwds.find(key);
-  if (it == pooling_bwds.end()) {
+  if (it == nullptr) {
     auto diff_dst_mem = out_grad.GetMKLDNNData();
     auto input_mem = in_data.GetMKLDNNData();
     mkldnn::memory::primitive_desc data_mpd = input_mem->get_primitive_desc();
@@ -361,9 +358,9 @@ MKLDNNPoolingBwd &GetPoolingBwd(const PoolingParam &param,
         mkldnn::padding_kind::zero);
     const auto pdesc = pooling_backward::primitive_desc(desc, cpu_engine, fwd_pd);
     MKLDNNPoolingBwd bwd(pdesc, with_workspace);
-    it = AddToCache(pooling_bwds, key, bwd);
+    it = pooling_bwds.insert(key, bwd);
   }
-  return it->second;
+  return *it;
 }
 
 void MKLDNNPoolingGradCompute(const OpContext &ctx, const PoolingParam &param,

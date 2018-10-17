@@ -48,6 +48,7 @@
 
 #if MXNET_USE_MKLDNN == 1
 #include <iterator>
+#include <list>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -153,16 +154,50 @@ static inline int GetMKLDNNCacheSize() {
 }
 
 // TODO(alex): (MXNET-1075) Will remove env variable and calculate cache size during runtime
-template<typename S, typename I, typename H>
-static typename std::unordered_map<S, I, H>::iterator AddToCache(
-    const std::unordered_map<S, I, H> &cache, const S &key, const I &item) {
-  int mkldnn_cache_size = GetMKLDNNCacheSize();
-  if (mkldnn_cache_size != -1 && static_cast<int>(cache.size()) > mkldnn_cache_size)
-    cache.erase(cache.begin());
-  auto ins_return = cache.insert(std::pair<S, I>(key, item));
-  CHECK(ins_return.second);
-  return ins_return.first;
-}
+//template<typename S, typename I, typename H>
+//static typename std::unordered_map<S, I, H>::iterator AddToCache(
+//    const std::unordered_map<S, I, H> &cache, const S &key, const I &item) {
+//  int mkldnn_cache_size = GetMKLDNNCacheSize();
+//  if (mkldnn_cache_size != -1 && static_cast<int>(cache.size()) > mkldnn_cache_size)
+//    cache.erase(cache.begin());
+//  auto ins_return = cache.insert(std::pair<S, I>(key, item));
+//  CHECK(ins_return.second);
+//  return ins_return.first;
+//}
+
+template<typename K, typename V, typename H>
+class MKLDNNCache {
+  typedef typename std::list<K>::iterator IT;
+
+ public:
+  MKLDNNCache(): capacity(GetMKLDNNCacheSize()) {}
+  V* insert(const K& key, const V& value) {
+
+    if (capacity > 0 && static_cast<int>(ma.size()) > capacity)
+      ma.erase(dq.back());
+
+    dq.push_front(key);
+    ma[key] = std::pair<V,IT>(value, dq.begin());
+    return &value;
+  }
+
+  V* find(const K& key) {
+    auto ret = ma.find(key);
+    if (ret == ma.end())
+      return nullptr;
+    dq.erase(ret.second);
+    dq.push_front(key);
+    ma[key].second = dq.begin();
+    return &ret.first;
+  }
+
+ private:
+  std::list<K> dq;
+  std::unordered_map<K, typename std::pair<V, IT>> ma;
+  int capacity;
+};
+
+
 
 /*
  * This is to align address to a certain alignment.

@@ -135,9 +135,9 @@ static MKLDNNActForward &GetActForward(const ActivationParam& param,
                                        const OpContext &ctx, const NDArray &in_data,
                                        const mkldnn::memory &in_mem) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNActSignature, MKLDNNActForward, OpHash> fwds;
+  static thread_local MKLDNNCache<MKLDNNActSignature, MKLDNNActForward, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNActSignature, MKLDNNActForward, OpHash> fwds;
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNActSignature, MKLDNNActForward, OpHash> fwds;
 #endif
   MKLDNNActSignature key(param);
   key.AddSign(ctx.is_train);
@@ -145,11 +145,11 @@ static MKLDNNActForward &GetActForward(const ActivationParam& param,
   key.AddSign(in_data);
 
   auto it = fwds.find(key);
-  if (it == fwds.end()) {
+  if (it == nullptr) {
     MKLDNNActForward fwd(param, ctx.is_train, in_data, in_mem);
-    it = AddToCache(fwds, key, fwd);
+    it = fwds.insert(key, fwd);
   }
-  return it->second;
+  return *it;
 }
 
 void MKLDNNActivationForward(const nnvm::NodeAttrs& attrs, const OpContext &ctx,
@@ -247,9 +247,9 @@ static inline MKLDNNActBackward &GetActBackward(const ActivationParam &param,
                                                 const NDArray &out_grad,
                                                 const mkldnn::memory &in_mem) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNActSignature, MKLDNNActBackward, OpHash> bwds;
+  static thread_local MKLDNNCache<MKLDNNActSignature, MKLDNNActBackward, OpHash> bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNActSignature, MKLDNNActBackward, OpHash> bwds;
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNActSignature, MKLDNNActBackward, OpHash> bwds;
 #endif
   MKLDNNActSignature key(param);
   key.AddSign(in_data);
@@ -258,9 +258,9 @@ static inline MKLDNNActBackward &GetActBackward(const ActivationParam &param,
   auto it = bwds.find(key);
   if (it == bwds.end()) {
     MKLDNNActBackward bwd(param, in_data, in_mem, *out_grad.GetMKLDNNData());
-    it = AddToCache(bwds, key, bwd);
+    it = bwds.find(key, bwd);
   }
-  return it->second;
+  return *it;
 }
 
 // For backward relu activation, it's okay to pass "out_data" as "in_data" to this

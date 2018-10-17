@@ -185,22 +185,22 @@ static MKLDNNBNForward &GetBNForward(const BatchNormParam& param,
                                      const OpContext &ctx, const NDArray &in_data,
                                      unsigned flags) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNBNSignature, MKLDNNBNForward, OpHash> fwds;
+  static thread_local MKLDNNCache<MKLDNNBNSignature, MKLDNNBNForward, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNBNSignature, MKLDNNBNForward, OpHash> fwds;
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNBNSignature, MKLDNNBNForward, OpHash> fwds;
 #endif
   MKLDNNBNSignature key(param);
   key.AddSign(ctx.is_train);
   key.AddSign(in_data);
 
   auto it = fwds.find(key);
-  if (it == fwds.end()) {
+  if (it == nullptr) {
     auto fwd_pd = _GetFwd(*in_data.GetMKLDNNData(), ctx.is_train,
                           (DType) param.eps, flags);
     MKLDNNBNForward fwd(fwd_pd, ctx.is_train);
-    it = AddToCache(fwds, key, fwd);
+    it = fwds.find(key, fwd);
   }
-  return it->second;
+  return *it;
 }
 
 template <typename DType>
@@ -345,21 +345,21 @@ static MKLDNNBNBackward &GetBNBackward(
     const mkldnn::memory &in_mem, const NDArray &diff_data,
     const mkldnn::memory &diff_mem, unsigned flags) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNBNSignature, MKLDNNBNBackward, OpHash> bwds;
+  static thread_local MKLDNNCache<MKLDNNBNSignature, MKLDNNBNBackward, OpHash> bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNBNSignature, MKLDNNBNBackward, OpHash> bwds;
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNBNSignature, MKLDNNBNBackward, OpHash> bwds;
 #endif
   MKLDNNBNSignature key(param);
   key.AddSign(in_data);
   key.AddSign(diff_data);
 
   auto it = bwds.find(key);
-  if (it == bwds.end()) {
+  if (it == nullptr) {
     auto bwd_pd = _GetBwd(in_mem, diff_mem, param.eps, flags);
     MKLDNNBNBackward bwd(bwd_pd);
-    it = AddToCache(bwds, key, bwd);
+    it = bwds.insert(key, bwd);
   }
-  return it->second;
+  return *it;
 }
 
 template <typename DType>

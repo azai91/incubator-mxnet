@@ -240,9 +240,9 @@ MKLDNNConvForward &GetConvFwd(const ConvolutionParam &param,
                               const NDArray &weights, const NDArray *bias,
                               const NDArray &output) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNConvSignature, MKLDNNConvForward, OpHash> fwds;
+  static thread_local MKLDNNCache<MKLDNNConvSignature, MKLDNNConvForward, OpHash> fwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNConvSignature, MKLDNNConvForward, OpHash> fwds;
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNConvSignature, MKLDNNConvForward, OpHash> fwds;
 #endif
   MKLDNNConvSignature key(param);
   key.AddSign(is_train);
@@ -256,14 +256,14 @@ MKLDNNConvForward &GetConvFwd(const ConvolutionParam &param,
     key.AddSign(*bias);
 
   auto it = fwds.find(key);
-  if (it == fwds.end()) {
+  if (it == nullptr) {
     MKLDNNConvFullParam full_param;
     full_param.conv_param = param;
     full_param.mkldnn_param.Init(std::unordered_map<std::string, std::string>());
     MKLDNNConvForward fwd(full_param, is_train, data, weights, bias, output);
-    it = AddToCache(fwds, key, fwd);
+    it = fwds.insert(key, fwd);
   }
-  return it->second;
+  return *it;
 }
 
 void MKLDNNConvolutionForwardFullFeature(const MKLDNNConvFullParam &param,
@@ -462,9 +462,9 @@ static inline MKLDNNConvBackward &GetConvBwd(
     const NDArray *bias, const NDArray &output,
     const mkldnn::convolution_forward::primitive_desc &fwd_pd) {
 #if DMLC_CXX11_THREAD_LOCAL
-  static thread_local std::unordered_map<MKLDNNConvSignature, MKLDNNConvBackward, OpHash> bwds;
+  static thread_local MKLDNNCache<MKLDNNConvSignature, MKLDNNConvBackward, OpHash> bwds;
 #else
-  static MX_THREAD_LOCAL std::unordered_map<MKLDNNConvSignature, MKLDNNConvBackward, OpHash> bwds;
+  static MX_THREAD_LOCAL MKLDNNCache<MKLDNNConvSignature, MKLDNNConvBackward, OpHash> bwds;
 #endif
   const ConvolutionParam& param = nnvm::get<ConvolutionParam>(attrs.parsed);
   MKLDNNConvSignature key(param);
@@ -479,11 +479,11 @@ static inline MKLDNNConvBackward &GetConvBwd(
 
 
   auto it = bwds.find(key);
-  if (it == bwds.end()) {
+  if (it == nullptr) {
     MKLDNNConvBackward bwd(param, data, weights, bias, output, fwd_pd);
-    it = AddToCache(bwds, key, bwd);
+    it = bwds.insert(key, bwd);
   }
-  return it->second;
+  return *it;
 }
 
 void MKLDNNConvolutionBackward(const nnvm::NodeAttrs& attrs, const OpContext &ctx,
