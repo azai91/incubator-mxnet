@@ -174,8 +174,11 @@ class MKLDNNCache {
   MKLDNNCache(): capacity(GetMKLDNNCacheSize()) {}
   const V* insert(const K& key, const V& value) {
 
-    if (capacity > 0 && static_cast<int>(ma.size()) > capacity)
-      ma.erase(dq.back());
+    if (capacity > 0 && static_cast<int>(ma.size()) > capacity) {
+      ma.erase(dq.back()->first);
+      eq.pop_back()
+    }
+
 
     dq.push_front(key);
     ma.insert(std::pair<K,VAL>(key, VAL(value, dq.begin())));
