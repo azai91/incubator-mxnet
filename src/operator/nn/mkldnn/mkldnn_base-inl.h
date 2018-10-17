@@ -171,7 +171,7 @@ class MKLDNNCache {
 
  public:
   MKLDNNCache(): capacity(GetMKLDNNCacheSize()) {}
-  V* insert(const K& key, const V& value) {
+  const V* insert(const K& key, const V& value) {
 
     if (capacity > 0 && static_cast<int>(ma.size()) > capacity)
       ma.erase(dq.back());
@@ -181,7 +181,7 @@ class MKLDNNCache {
     return &value;
   }
 
-  V* find(const K& key) {
+  const V* find(const K& key) {
     auto ret = ma.find(key);
     if (ret == ma.end())
       return nullptr;
