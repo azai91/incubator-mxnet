@@ -192,8 +192,8 @@ class MKLDNNCache {
     dq.erase(ret->second.second);
     dq.push_front(key);
     auto value = ret->second.first;
-    ma.insert(std::pair<K,VAL>(key, VAL(value, dq.begin())));
-    return &value;
+    ma.at(key).second = dq.begin();
+    return &ma.at(key).first;
   }
 
  private:
