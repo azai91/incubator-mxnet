@@ -161,20 +161,19 @@ class MKLDNNCache {
 
  public:
   MKLDNNCache(): capacity(GetMKLDNNCacheSize()), dq(), ma{} {}
-  V* insert(K& key, V& value) {
-
+  V* insert(const K& key, const V& value) {
     if (capacity > 0 && static_cast<int>(ma.size()) > capacity) {
       ma.erase(dq.back());
       dq.pop_back();
     }
 
     dq.push_front(key);
-    auto ins_ret = ma.insert(std::pair<K,VAL>(key, VAL(value, dq.begin())));
+    auto ins_ret = ma.insert(std::pair<K, VAL>(key, VAL(value, dq.begin())));
     CHECK(ins_ret.second);
     return &ins_ret.first->second.first;
   }
 
-  V* find(K& key) {
+  V* find(const K& key) {
     auto ret = ma.find(key);
     if (ret == ma.end())
       return nullptr;
