@@ -180,8 +180,9 @@ class MKLDNNCache {
     }
 
     dq.push_front(key);
-    ma.insert(std::pair<K,VAL>(key, VAL(value, dq.begin())));
-    return &value;
+    auto ins_ret = ma.insert(std::pair<K,VAL>(key, VAL(value, dq.begin())));
+    CHECK(ins_ret.second);
+    return &ins_ret.first->second.first;
   }
 
   V* find(K& key) {
