@@ -191,7 +191,6 @@ class MKLDNNCache {
       return nullptr;
     dq.erase(ret->second.second);
     dq.push_front(key);
-    auto value = ret->second.first;
     ma.at(key).second = dq.begin();
     return &ma.at(key).first;
   }
