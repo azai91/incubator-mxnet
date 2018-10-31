@@ -27,6 +27,7 @@
 #include "./mkldnn_ops-inl.h"
 #include "./mkldnn_base-inl.h"
 #include "../../tensor/broadcast_reduce_op.h"
+#include "./mkldnn_base-inl.h"
 
 #if MXNET_USE_MKLDNN == 1
 namespace mxnet {
@@ -45,7 +46,10 @@ void MKLDNNSoftmaxForward(const nnvm::NodeAttrs& attrs, const OpContext &ctx,
                           const NDArray &in_data, const OpReqType &req,
                           const NDArray &out_data) {
   const SoftmaxParam& param = nnvm::get<SoftmaxParam>(attrs.parsed);
-  auto input_mem = in_data.GetMKLDNNData();
+  auto data = in_data;
+  if (in_data.IsView() && in_data.IsMKLDNNData())
+    data = in_data.Reorder2Default();
+  auto input_mem = data.GetMKLDNNData();
   mkldnn::memory::primitive_desc data_mpd = input_mem->get_primitive_desc();
   mkldnn::memory::desc data_md = data_mpd.desc();
   int axis = CheckAxis(param.axis, in_data.shape().ndim());
@@ -57,10 +61,13 @@ void MKLDNNSoftmaxForward(const nnvm::NodeAttrs& attrs, const OpContext &ctx,
       data_md, axis);
   mkldnn::softmax_forward::primitive_desc pdesc(desc, cpu_engine);
 
-  auto output_memory = out_data.GetMKLDNNData();
   MKLDNNStream *stream = MKLDNNStream::Get();
-  stream->RegisterPrim(mkldnn::softmax_forward(pdesc, *input_mem, *output_memory));
+  auto out_mem_t = CreateMKLDNNMem(out_data, pdesc, req, &data);
+  stream->RegisterPrim(mkldnn::softmax_forward(pdesc, *input_mem, *out_mem_t.second));
+  CommitOutput(out_data, out_mem_t);
   stream->Submit();
+
+
 }
 
 }   // namespace op
