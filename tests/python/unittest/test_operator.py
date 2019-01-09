@@ -1271,7 +1271,6 @@ def check_deconvolution_forward_backward(input_shape, num_filter, kernel, stride
        If the input value of forward() and backwrad() is the same, then
        the output value of them should also the same;
     """
-    dilate              = (1,1)
     assert input_shape[1] == num_filter
     data = mx.sym.Variable(name="data")
     conv = mx.sym.Convolution(
