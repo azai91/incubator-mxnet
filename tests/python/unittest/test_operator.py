@@ -1461,21 +1461,24 @@ def test_deconvolution():
         num_filter          = 1,
         kernel              = (3,),
         stride              = (1,),
-        pad                 = (1,)
+        pad                 = (1,),
+        dilate              = (1,)
     )
     check_deconvolution_forward_backward(
         input_shape         = (32,3,28),
         num_filter          = 3,
         kernel              = (3,),
         stride              = (1,),
-        pad                 = (1,)
+        pad                 = (1,),
+        dilate              = (1,)
     )
     check_deconvolution_forward_backward(
         input_shape         = (10, 3, 403),
         num_filter          = 3,
         kernel              = (7,),
         stride              = (5,),
-        pad                 = (2,)
+        pad                 = (2,),
+        dilate              = (1,)
     )
     check_deconvolution_gradient(
         input_shape = (1,3,5),
