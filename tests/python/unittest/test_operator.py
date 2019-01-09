@@ -1263,7 +1263,7 @@ def test_abs():
     assert_almost_equal(arr_grad.asnumpy(), npout_grad)
 
 
-def check_deconvolution_forward_backward(input_shape, num_filter, kernel, stride, pad):
+def check_deconvolution_forward_backward(input_shape, num_filter, kernel, stride, pad, dilate):
     """configure A: input --> conv --> deconv --> output.
        the convolution and deconvoluiton has similar parameter which ensure
        the input shape is the same as output, and the same weights between conv
@@ -1274,10 +1274,10 @@ def check_deconvolution_forward_backward(input_shape, num_filter, kernel, stride
     assert input_shape[1] == num_filter
     data = mx.sym.Variable(name="data")
     conv = mx.sym.Convolution(
-        data=data, kernel=kernel, stride=stride, pad=pad,
+        data=data, kernel=kernel, stride=stride, pad=pad, dilate=dilate,
         num_filter=num_filter, no_bias = "true", name = "conv")
     deconv = mx.sym.Deconvolution(
-        data=conv, kernel=kernel, stride=stride, pad=pad,
+        data=conv, kernel=kernel, stride=stride, pad=pad, dilate=dilate,
         num_filter=num_filter, no_bias = "true", name = "deconv")
 
     arg_names = deconv.list_arguments()
@@ -1389,6 +1389,7 @@ def test_deconvolution():
         target_shape        = (8,8),
         pad                 = (99,99),  # will be ignored
         adj                 = (101,101),  # will be ignored
+        dilate              = (1,1)
     )
     check_deconvolution_target_shape(
         input_shape         = (2,3,4,4),
@@ -1396,27 +1397,40 @@ def test_deconvolution():
         stride              = (2,2),
         pad                 = (1,1),
         adj                 = (1,1),
+        dilate              = (1,1)
     )
     check_deconvolution_forward_backward(
         input_shape         = (1,1,5,5),
         num_filter          = 1,
         kernel              = (3,3),
         stride              = (1,1),
-        pad                 = (1,1)
+        pad                 = (1,1),
+        dilate              = (1,1)
     )
     check_deconvolution_forward_backward(
         input_shape         = (32,3,28,28),
         num_filter          = 3,
         kernel              = (3,3),
         stride              = (1,1),
-        pad                 = (1,1)
+        pad                 = (1,1),
+        dilate              = (1,1)
     )
     check_deconvolution_forward_backward(
         input_shape         = (10, 3, 403, 403),
         num_filter          = 3,
         kernel              = (7,7),
         stride              = (5,5),
-        pad                 = (2,2)
+        pad                 = (2,2),
+        dilate              = (1,1)
+    )
+    check_deconvolution_forward_backward(
+        input_shape         = (1, 3, 3),
+        num_filter          = 1,
+        kernel              = (3,3),
+        stride              = (2,2),
+        pad                 = (2,2),
+        dilate              = (2,2)
+
     )
     check_deconvolution_gradient(
         input_shape = (1,3,5,5),
