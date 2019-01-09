@@ -1389,7 +1389,6 @@ def test_deconvolution():
         target_shape        = (8,8),
         pad                 = (99,99),  # will be ignored
         adj                 = (101,101),  # will be ignored
-        dilate              = (1,1)
     )
     check_deconvolution_target_shape(
         input_shape         = (2,3,4,4),
@@ -1397,7 +1396,6 @@ def test_deconvolution():
         stride              = (2,2),
         pad                 = (1,1),
         adj                 = (1,1),
-        dilate              = (1,1)
     )
     check_deconvolution_forward_backward(
         input_shape         = (1,1,5,5),
